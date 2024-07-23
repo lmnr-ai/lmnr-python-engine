@@ -1,2 +1,2 @@
 # lmnr-python-engine
-Template for Python engine
+Cookiecutter template for Laminar Python engine
