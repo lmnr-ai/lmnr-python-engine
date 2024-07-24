@@ -200,8 +200,55 @@ def {{task.function_name}}(input: NodeInput, _env: dict[str, str]) -> RunOutput:
 
 {% elif task.node_type == "Code" %}
 def {{task.function_name}}({{ task.handle_args }}, _env: dict[str, str]) -> RunOutput:
-    # Implement any functionality you want here
-    raise NodeRunError("Implement your code here")
+    {# TODO: Add support for ChatMessageContentPart #}
+    def input_to_code_node_arg(inp):
+        if isinstance(inp, str):
+            return inp
+        elif isinstance(inp, list):
+            if all(isinstance(elem, str) for elem in inp):
+                return inp
+            else:
+                return [{"role": elem.role, "content": elem.content} for elem in inp]
+        elif isinstance(inp, ConditionedValue):
+            return {"condition": inp.condition, "value": input_to_code_node_arg(inp.value)}
+        else:
+            raise NodeRunError(f"Unsupported input type: {type(inp)}")
+
+    def code_node_res_to_node_input(res):
+        if isinstance(res, str):
+            return res
+        elif isinstance(res, list):
+            if all(isinstance(elem, str) for elem in res):
+                return res
+            else:
+                return [ChatMessage(role=elem["role"], content=elem["content"]) for elem in res]
+        else:
+            raise NodeRunError(f"Unsupported output type: {type(res)}")
+
+{{ task.config.code | indent(4, "   ", false) }}
+
+    res = {{ task.config.fn_name }}({{ task.config.fn_inputs }})
+
+    return RunOutput(status="Success", output=code_node_res_to_node_input(res))
+
+
+{% elif task.node_type == "JsonExtractor" %}
+def {{task.function_name}}(input: NodeInput, _env: dict[str, str]) -> RunOutput:
+    import re
+    import pystache
+
+    # Replaces "json" extension used in pipeline builder and not needed in pystache
+    def remove_json_word(text: str) -> str:
+        pattern = re.compile(r'{{'{{'}}\s*json\s+')
+        result = pattern.sub('{{'{{'}}', text)
+        return result
+
+    template = remove_json_word("""{{task.config.template}}""")
+
+    renderer = pystache.Renderer(escape = lambda u: u)
+    res = renderer.render(template, json.loads(input))
+
+    return RunOutput(status="Success", output=res)
 
 
 {% elif task.node_type == "Output" %}

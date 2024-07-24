@@ -19,7 +19,7 @@ class PipelineRunnerError(Exception):
 
 @dataclass
 class PipelineRunOutput:
-    value: Union[str, list[ChatMessage]]
+    value: Union[str, list[str], list[ChatMessage]]
 
 
 # This class is not imported in other files and can be renamed to desired name
